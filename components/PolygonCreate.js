@@ -3,7 +3,6 @@ import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Alert} f
 import MapView, {PROVIDER_GOOGLE, Polygon} from 'react-native-maps';
 import RetroMapStyles from './MapStyles/RetroMapStyles.json';
 import RNFetchBlob from 'react-native-fetch-blob';
-//import DialogInput from 'react-native-dialog-input';
 
 const screen = Dimensions.get('window');
 const ASPECT_RATIO = screen.width / screen.height;
@@ -70,18 +69,6 @@ export default class PolygonCreate extends Component {
     this._ismounted=false;
   }
 
-  finish() {
-    const { polygons, editing } = this.state;
-    this.setState({
-      polygons: [...polygons, editing],
-      editing: null,
-      creatingHole: false,
-    });
-    //console.warn(this.state.polygons);
-    console.warn(this.state.editing.coordinates);
-    //console.warn(this.state.region);
-  }
-    
   createHole() {
     const { editing, creatingHole } = this.state;
     if (!creatingHole) {
@@ -155,16 +142,40 @@ export default class PolygonCreate extends Component {
   }
       
   exportData = () => {
-    const headerString = 'event,timestamp\n';
-    const rowString = this.state.editing.coordinates.map((l) => `${l[0]},${l[1]}\n` ).join('');
-    const csvString = `${headerString}${rowString}`;
+    const { polygons, editing } = this.state;
+    this.setState({
+      polygons: [...polygons, editing],
+      editing: null,
+      creatingHole: false,
+    });
+    //console.warn(this.state.editing.coordinates);
 
-    const pathToWrite = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
+    const headerString = 'event,timestamp\n';
+    const FILE_PATH = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
+    const csvString = `${headerString}${this.ConvertToCSV(this.state.editing.coordinates)}`;
     RNFetchBlob.fs
-      .writeFile(pathToWrite,csvString,'utf8')
-      .then(Alert.alert('File Exported'))
-      .catch(error=>console.warn(error.message));
+      .writeFile(FILE_PATH, csvString, "utf8")
+      .then(() => {
+        alert("File updated succesfully");
+      })
+      .catch(error => alert(error.message));
   }
+
+  ConvertToCSV = (objArray) => {
+    var array = typeof objArray != "object" ? JSON.parse(objArray) : objArray;
+    var str = "";
+    for (var i = 0; i < array.length; i++) {
+        var line = "";
+        for (var index in array[i]) {
+            if (line != "") line += ",";
+
+            line += array[i][index];
+        }
+
+        str += line + "\r\n";
+    }
+    return str;
+  };
 
   render() {   
     return (
@@ -222,13 +233,6 @@ export default class PolygonCreate extends Component {
           )))}
         </MapView>
         <View style={styles.buttonContainer}>
-          {this.state.editing && (
-            <TouchableOpacity
-              onPress={() => this.finish()}
-              style={[styles.bubble, styles.button]}>
-              <Text>Finish</Text>
-            </TouchableOpacity>
-          )}
           {this.state.editing && (
             <TouchableOpacity
               onPress={() => this.exportData()}

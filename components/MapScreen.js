@@ -1,8 +1,7 @@
 import React, {Component} from 'react';
 import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Share} from 'react-native';
-import MapView, {PROVIDER_GOOGLE} from 'react-native-maps';
+import MapView, {PROVIDER_GOOGLE, Marker} from 'react-native-maps';
 import RetroMapStyles from './MapStyles/RetroMapStyles.json';
-import {Marker} from 'react-native-maps';
 
 
 const screen = Dimensions.get('window');
