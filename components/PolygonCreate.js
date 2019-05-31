@@ -3,6 +3,8 @@ import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Alert} f
 import MapView, {PROVIDER_GOOGLE, Polygon} from 'react-native-maps';
 import RetroMapStyles from './MapStyles/RetroMapStyles.json';
 import RNFetchBlob from 'react-native-fetch-blob';
+import {BackHandler} from 'react-native';
+
 
 const screen = Dimensions.get('window');
 const ASPECT_RATIO = screen.width / screen.height;
@@ -50,7 +52,6 @@ export default class PolygonCreate extends Component {
             longitudeDelta: LONGITUDE_DELTA,
           }
         })
-        //console.warn(position)
       },
       (error) => {
         console.warn('error in getting coordinates',error.message);
@@ -64,9 +65,18 @@ export default class PolygonCreate extends Component {
       }
     }
   }
+
+  componentWillMount() {
+    BackHandler.removeEventListener('hardwareBackPress', this.onBack);
+  }
   
   componentWillUnmount() {
     this._ismounted=false;
+    BackHandler.removeEventListener('hardwareBackPress', this.onBack);
+  }
+
+  onBack = () => {
+    return this.props.onBack();
   }
 
   createHole() {
@@ -148,8 +158,7 @@ export default class PolygonCreate extends Component {
       editing: null,
       creatingHole: false,
     });
-    //console.warn(this.state.editing.coordinates);
-
+    
     const headerString = 'event,timestamp\n';
     const FILE_PATH = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
     const csvString = `${headerString}${this.ConvertToCSV(this.state.editing.coordinates)}`;
@@ -165,14 +174,12 @@ export default class PolygonCreate extends Component {
     var array = typeof objArray != "object" ? JSON.parse(objArray) : objArray;
     var str = "";
     for (var i = 0; i < array.length; i++) {
-        var line = "";
-        for (var index in array[i]) {
-            if (line != "") line += ",";
-
-            line += array[i][index];
-        }
-
-        str += line + "\r\n";
+      var line = "";
+      for (var index in array[i]) {
+        if (line != "") line += ",";
+          line += array[i][index];
+      }
+      str += line + "\r\n";
     }
     return str;
   };
@@ -183,7 +190,6 @@ export default class PolygonCreate extends Component {
         <MapView
           provider={PROVIDER_GOOGLE}
           style={styles.map}
-          customMapStyle={RetroMapStyles}
           region={this.state.region}
           onPress={e => this.onPress(e)}>
           <MapView.Marker 
@@ -227,7 +233,6 @@ export default class PolygonCreate extends Component {
               <MapView.Marker
                 key={index}
                 coordinate={coordinate}
-               // anchor={{ x: 0.5, y: 0.5 }}
                 onPress={(e) => this.changeCoordinate(e, index)}>
               </MapView.Marker>
           )))}
@@ -259,7 +264,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.7)',
     paddingHorizontal: 18,
     paddingVertical: 12,
-    borderRadius: 20,
   },
   latlng: {
     width: 200,

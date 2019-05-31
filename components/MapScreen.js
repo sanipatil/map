@@ -1,7 +1,8 @@
 import React, {Component} from 'react';
-import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Share} from 'react-native';
+import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Share, Alert} from 'react-native';
 import MapView, {PROVIDER_GOOGLE, Marker} from 'react-native-maps';
 import RetroMapStyles from './MapStyles/RetroMapStyles.json';
+import {BackHandler} from 'react-native';
 
 
 const screen = Dimensions.get('window');
@@ -33,8 +34,21 @@ export default class MapScreen extends Component {
       },
       markers: []
     };
+    BackHandler.addEventListener('hardwareBackPress', this.onBack);
   }
-  
+
+  componentWillMount() {
+    BackHandler.removeEventListener('hardwareBackPress', this.onBack);
+  }
+
+  componentWillUnmount() {
+    BackHandler.removeEventListener('hardwareBackPress', this.onBack);
+  }
+
+  onBack = () => {
+    return this.props.onBack();
+  }
+
   componentDidMount() {
     this._ismounted=true;
     navigator.geolocation.getCurrentPosition(
@@ -80,12 +94,35 @@ export default class MapScreen extends Component {
   }
 
   shareCoordinates = () => {
-    console.warn(this.state.markers.latlng);
+    //console.warn(this.state.markers.latlng);
     var temp  = JSON.stringify(this.state.markers)
     Share.share({
       message: temp
     }).then(result=>console.log(result).catch(errorMsg=>console.log(errorMsg)));
-    
+  }
+
+  displayLatlng = (i) => {
+    const title = `LatLng of Marker: ${i+1}`;
+    const message = `Latlng: ${JSON.stringify(this.state.markers[i].latlng)}`;
+    Alert.alert(title, message);
+  }
+
+  shareMarker = (i) => {
+    var temp  = JSON.stringify(this.state.markers[i].latlng);
+    Share.share({
+      message: temp
+    }).then(result=>console.log(result).catch(errorMsg=>console.log(errorMsg)));
+  }
+ 
+  onMarkerPress(i) {
+    const id = (i+1).toString();
+    const title = `MarkerId: ${id}`;
+    const message = 'Operations on marker'
+    const buttons = [
+      {text: 'Display LatLng', onPress: () => this.displayLatlng(i)},
+      {text: 'Share', onPress: () => this.shareMarker(i)}
+    ]
+    Alert.alert(title, message, buttons);
   }
   
   render() {
@@ -95,7 +132,6 @@ export default class MapScreen extends Component {
           ref={(mapView)=>{ _mapView = mapView;}}
           provider={PROVIDER_GOOGLE}
           style={styles.map}
-          customMapStyle={RetroMapStyles}
           region={this.state.coordinate}
           onPress={(e)=>this.addMarker(e.nativeEvent.coordinate)}>
           <Marker 
@@ -104,11 +140,14 @@ export default class MapScreen extends Component {
             }}
             coordinate={this.state.coordinate}
             image={require('./res/myloc.png')}
+            title="My location"
           />
           {this.state.markers.map((marker,i)=>(
               <Marker 
                 key={i}
                 coordinate={marker.latlng}
+                title={(i+1).toString()}
+                onPress={()=> this.onMarkerPress(i)}
               />
             ))
           }
@@ -117,7 +156,7 @@ export default class MapScreen extends Component {
             <TouchableOpacity
               onPress={()=>this.shareCoordinates()}
               style={[styles.bubble, styles.button]}>
-              <Text>Share Marked Points</Text>
+              <Text>Share All Marked Points</Text>
             </TouchableOpacity>
         </View>
       </View>
@@ -139,7 +178,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.7)',
     paddingHorizontal: 18,
     paddingVertical: 12,
-    borderRadius: 20,
+    //borderRadius: 20,
   },
   latlng: {
     width: 200,
