@@ -11,9 +11,10 @@ import HomeScreen from './components/HomeScreen';
 import MapScreen from './components/MapScreen';
 import PolygonCreate from './components/PolygonCreate';
 import BearingAngle from './components/BearingAngle';
+import ShowBearingData from './components/ShowBearingData';
 
 const Navigator = createStackNavigator(
-  {HomeScreen, MapScreen, PolygonCreate, BearingAngle},
+  {HomeScreen, MapScreen, PolygonCreate, BearingAngle, ShowBearingData},
   {initialRouteName :'HomeScreen'},
 );
 

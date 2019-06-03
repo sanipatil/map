@@ -1,9 +1,9 @@
 import React, {Component} from 'react';
-import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Alert} from 'react-native';
+import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Alert, Image} from 'react-native';
 import MapView, {PROVIDER_GOOGLE, Polygon} from 'react-native-maps';
-import RetroMapStyles from './MapStyles/RetroMapStyles.json';
 import RNFetchBlob from 'react-native-fetch-blob';
 import {BackHandler} from 'react-native';
+import HeaderCommon from './HeaderCommon';
 
 
 const screen = Dimensions.get('window');
@@ -20,13 +20,28 @@ export default class PolygonCreate extends Component {
     headerStyle: {
       backgroundColor: '#1b3752'
     },
-    headerTintColor: '#dce7f3'
+    headerTintColor: '#dce7f3',
+    headerRight: (
+      <HeaderCommon
+          GoToAlert = {() => {
+              const title = 'Create Polygon Help';
+              const message = '1.DoubleTap the map to Zoom and mark locations accurately.\n'+'\n2. To Export the polygon coordinates, click on "Export To CSV". A "polygon.csv" file will be exported in the download folder.';
+              Alert.alert(title, message);
+          }}
+      />
+    )
   };
 
   constructor(props) {
     super(props);
     this.state = {
       region: {
+        latitude: 0,
+        longitude: 0,
+        latitudeDelta: LATITUDE_DELTA,
+        longitudeDelta: LONGITUDE_DELTA,
+      },
+      regiongps: {
         latitude: 0,
         longitude: 0,
         latitudeDelta: LATITUDE_DELTA,
@@ -45,7 +60,7 @@ export default class PolygonCreate extends Component {
         let latitude = position.coords.latitude;
         let longitude = position.coords.longitude;
         this.setState({
-          region: {
+          regiongps: {
             latitude: latitude,
             longitude: longitude,
             latitudeDelta: LATITUDE_DELTA,
@@ -104,13 +119,13 @@ export default class PolygonCreate extends Component {
       }
   }
     
-  onPress(e) {
+  onPress() {
     const { editing, creatingHole } = this.state;
     if (!editing) {
       this.setState({
         editing: {
           id: id++,
-          coordinates: [e.nativeEvent.coordinate],
+          coordinates: [this.state.region],
           holes: [],
         },
       });
@@ -118,14 +133,14 @@ export default class PolygonCreate extends Component {
         this.setState({
           editing: {
             ...editing,
-            coordinates: [...editing.coordinates, e.nativeEvent.coordinate],
+            coordinates: [...editing.coordinates, this.state.region],
           },
         });
       } else {
           const holes = [...editing.holes];
           holes[holes.length - 1] = [
             ...holes[holes.length - 1],
-            e.nativeEvent.coordinate,
+            this.state.region,
           ];
           this.setState({
             editing: {
@@ -138,8 +153,8 @@ export default class PolygonCreate extends Component {
         }
   }
 
-  changeCoordinate(e, index) {
-    let newCoord = e.nativeEvent.coordinate;
+  changeCoordinate(index) {
+    let newCoord = this.state.region;
     let newEditing = Object.assign({},this.state.editing);
     let newCoordinates = Object.assign({},newEditing.coordinates);
     newCoordinates[index] = newCoord;
@@ -159,7 +174,8 @@ export default class PolygonCreate extends Component {
       creatingHole: false,
     });
     
-    const headerString = 'event,timestamp\n';
+    console.warn(this.state.editing.coordinates);
+    const headerString = 'latitude,longitude\n';
     const FILE_PATH = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
     const csvString = `${headerString}${this.ConvertToCSV(this.state.editing.coordinates)}`;
     RNFetchBlob.fs
@@ -174,30 +190,29 @@ export default class PolygonCreate extends Component {
     var array = typeof objArray != "object" ? JSON.parse(objArray) : objArray;
     var str = "";
     for (var i = 0; i < array.length; i++) {
-      var line = "";
-      for (var index in array[i]) {
-        if (line != "") line += ",";
-          line += array[i][index];
-      }
-      str += line + "\r\n";
+      str+= array[i]['latitude']+","+array[i]['longitude']+"\r\n";
     }
     return str;
   };
 
-  render() {   
+  onRegionChangeComplete = (region) => {
+    this.setState({region})   
+  }
+
+  callMap() {
     return (
-      <View style={styles.container}>
-        <MapView
+      <MapView
           provider={PROVIDER_GOOGLE}
           style={styles.map}
-          region={this.state.region}
-          onPress={e => this.onPress(e)}>
+          onRegionChangeComplete={this.onRegionChangeComplete}
+        >
           <MapView.Marker 
             ref={marker => {
               this.marker = marker;
             }}
-            coordinate={this.state.region}
-            image={require('./res/myloc.png')}
+            coordinate={this.state.regiongps}
+            title="My location"
+            pinColor={'yellow'}
           />
           {this.state.polygons.map((polygon) => (
             <Polygon
@@ -233,10 +248,24 @@ export default class PolygonCreate extends Component {
               <MapView.Marker
                 key={index}
                 coordinate={coordinate}
-                onPress={(e) => this.changeCoordinate(e, index)}>
+                onPress={(e) => this.changeCoordinate(index)}>
               </MapView.Marker>
           )))}
         </MapView>
+    );
+  }
+
+  render() {   
+    return (
+      <View style={styles.container}>
+        {this.callMap()}
+        <View style={styles.markerFixed}>
+          <TouchableOpacity onPress={()=>this.onPress()}>
+            <Image source={require('./res/mark.png')}
+              style={{width: 60, height: 60}}
+            />
+          </TouchableOpacity>
+        </View>
         <View style={styles.buttonContainer}>
           {this.state.editing && (
             <TouchableOpacity
@@ -261,7 +290,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   bubble: {
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'rgba(255,255,255,0.8)',
     paddingHorizontal: 18,
     paddingVertical: 12,
   },
@@ -281,5 +310,16 @@ const styles = StyleSheet.create({
     marginVertical: 15,
     backgroundColor: 'transparent',
     justifyContent: 'space-between'
+  },
+  markerFixed: {
+    left: '50%',
+    marginLeft: -30,  //-30, //-24,
+    marginTop: -30,   //-30, //-48,
+    position: 'absolute',
+    top: '50%',
+    zIndex: 999,
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: 'transparent'
   },
 });

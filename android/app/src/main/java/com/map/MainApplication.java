@@ -5,6 +5,7 @@ import cl.json.RNSharePackage;
 import cl.json.ShareApplication;
 
 import com.facebook.react.ReactApplication;
+import io.realm.react.RealmReactPackage;
 import com.oblador.vectoricons.VectorIconsPackage;
 import com.RNFetchBlob.RNFetchBlobPackage;
 import com.swmansion.gesturehandler.react.RNGestureHandlerPackage;
@@ -29,7 +30,8 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
-            new VectorIconsPackage(),
+          new RealmReactPackage(),
+          new VectorIconsPackage(),
           new RNFetchBlobPackage(),
           new RNGestureHandlerPackage(),
           new MapsPackage(),

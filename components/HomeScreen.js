@@ -48,7 +48,7 @@ export default class HomeScreen extends Component {
             <ImageBackground source={require('./res/map.jpg')} style={styles.backgroundImage}>
                 <View style={styles.MainContainer}>
                     <TouchableOpacity onPress={this.GoToMapScreen} activeOpacity={0.1} style={styles.button} >
-                        <Text style={styles.TextStyle}> GO TO MAP </Text>
+                        <Text style={styles.TextStyle}> MAP COORDINATES </Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={this.GoToPolygon} activeOpacity={0.1} style={styles.button} >
                         <Text style={styles.TextStyle}> CREATE POLYGON </Text>

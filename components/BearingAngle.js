@@ -2,13 +2,16 @@ import React, {Component} from 'react';
 import {Platform, StyleSheet, Text, View, Button, TouchableOpacity, Dimensions, TextInput, Alert, Image} from 'react-native';
 import MapView, {PROVIDER_GOOGLE, Marker} from 'react-native-maps';
 import renderIf from 'render-if';
+import {BackHandler} from 'react-native';
+import realm from './RealmData';
+import HeaderMenu from './HeaderMenu';
 
 
 const BRNG = 0;
-const LATITUDE_A = 0.06044;
-const LONGITUDE_A = -17.03663;
-const LATITUDE_B = 35.35996;
-const LONGITUDE_B = -17.03663;
+const LATITUDE_A = 0.00000;
+const LONGITUDE_A = 0.00000;
+const LATITUDE_B = 30.35996;
+const LONGITUDE_B = 0.00000;
 const screen = Dimensions.get('window');
 const ASPECT_RATIO = screen.width / screen.height;
 const LATITUDE_DELTA = 0.0922;
@@ -16,12 +19,27 @@ const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
 export default class BearingAngle extends Component {
 
-    static navigationOptions = {
-        title: 'Bearing Angle',
-        headerStyle: {
-           backgroundColor: '#1b3752'
-        },
-        headerTintColor: '#dce7f3'
+    static navigationOptions = ({navigation}) => {
+
+        return {
+            title: 'Bearing Angle',
+            headerStyle: {
+                backgroundColor: '#1b3752'
+            },
+            headerTintColor: '#dce7f3',
+            headerRight: (
+                <HeaderMenu
+                    GoToDisplay = {() => {
+                        navigation.navigate('ShowBearingData');
+                    }}
+                    GoToAlert = {() => {
+                        const title = 'Bearing Angle Help';
+                        const message = '1.DoubleTap to zoom map and mark locations accurately.\n'+'\n2. Click on the marker to access options: Move to GPS and Edit Manually.\n'+'\n3. To Show all bearings click the menu option in the header.';
+                        Alert.alert(title, message);
+                    }}
+                />
+            )
+        };
     };
 
     constructor(props) {
@@ -48,49 +66,62 @@ export default class BearingAngle extends Component {
             Sid: 1,
             Tid: 2,
         };
+        BackHandler.addEventListener('hardwareBackPress', this.onBack);
+    }
+
+    componentWillMount() {
+        BackHandler.removeEventListener('hardwareBackPress', this.onBack);
+    }
+    
+    componentWillUnmount() {
+        BackHandler.removeEventListener('hardwareBackPress', this.onBack);
+    }
+    
+    onBack = () => {
+        return this.props.onBack();
     }
 
     callMap() {
+        
         return(
             <MapView
-            provider={PROVIDER_GOOGLE}
-            style={styles.map}
-            onRegionChangeComplete={this.onRegionChange}
-            >
-            <Marker
-                coordinate={this.state.src}
-                key={this.state.Sid}
-                title='Source'
-                onPress={(e)=>{this.onMarkerPress(this.state.Sid)}}
-                //anchor={{x: 0.5,y:0.5}}   // places polyline to the center of the target icon
-            >
-            </Marker>
-            <Marker
-                coordinate={this.state.B}
-                title='Target'
-                onPress={(e)=>{this.onMarkerPress(this.state.Tid)}}
-                //anchor={{x: 0.5,y:0.5}}
-            >
-            </Marker>
-            <MapView.Polyline 
-                coordinates={[
-                    {latitude: this.state.src.latitude, longitude: this.state.src.longitude},
-                    {latitude: this.state.B.latitude, longitude: this.state.B.longitude}
-                ]}
-                style={{marginTop: 30}}
+                provider={PROVIDER_GOOGLE}
+                style={styles.map}
+                onRegionChangeComplete={this.onRegionChangeComplete}
                 >
-            </MapView.Polyline>
-        </MapView>
+                <Marker
+                    coordinate={this.state.src}
+                    key={this.state.Sid}
+                    title={'Source '+(this.state.Sid).toString()}
+                    onPress={(e)=>{this.onMarkerPress(this.state.Sid)}}
+                    //anchor={{x: 0.5,y:0.5}}   // places polyline to the center of the target icon
+                >
+                </Marker>
+                <Marker
+                    coordinate={this.state.B}
+                    title={'Target '+(this.state.Tid).toString()}
+                    onPress={(e)=>{this.onMarkerPress(this.state.Tid)}}
+                >
+                </Marker>
+                <MapView.Polyline 
+                    coordinates={[
+                        {latitude: this.state.src.latitude, longitude: this.state.src.longitude},
+                        {latitude: this.state.B.latitude, longitude: this.state.B.longitude}
+                    ]}
+                    style={{marginTop: 30}}
+                    >
+                </MapView.Polyline>
+            </MapView>
         );
     }
 
-    onRegionChange = region => {
+    onRegionChangeComplete = (region) => {
         this.setState({region})   
     }
 
     onMarkerPress(id) {
         const title = 'Bearing Operations';
-        const message = '';
+        const message = `Marker Id: ${id}`;
         const buttons = [
             {text: 'Move To GPS', onPress: () => this.mylocation(id)},
             {text: 'Edit Manually', onPress: () => this.mark(id)},
@@ -99,7 +130,6 @@ export default class BearingAngle extends Component {
     }
 
     mylocation = (id) => {
-        //console.warn(id);
         if(id == 1) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -111,6 +141,8 @@ export default class BearingAngle extends Component {
                         accuracy: position.coords.accuracy,
                         gpsmarker: true,
                         manualmarker: false,
+                    }, ()=>{
+                        this.bearingEvent(this.state.src,this.state.B); 
                     })
                 },
                 (error) => {
@@ -118,7 +150,6 @@ export default class BearingAngle extends Component {
                 },
                 {enableHighAccuracy: false, timeout: 15000, maximumAge: 100}
             );
-            this.callMap();
         }
         else if(id == 2) {
             navigator.geolocation.getCurrentPosition(
@@ -131,6 +162,8 @@ export default class BearingAngle extends Component {
                         accuracy: position.coords.accuracy,
                         gpsmarker: true,
                         manualmarker: false,
+                    }, ()=>{
+                        this.bearingEvent(this.state.src,this.state.B); 
                     })
                 },
                 (error) => {
@@ -138,7 +171,6 @@ export default class BearingAngle extends Component {
                 },
                 {enableHighAccuracy: false, timeout: 15000, maximumAge: 100}
             );
-            this.callMap();
         }
     }
 
@@ -150,8 +182,7 @@ export default class BearingAngle extends Component {
         })
     }
     markPoint = (id) => {
-        console.warn(this.state.region);
-
+        //console.warn(this.state.region);
         if (id == 1) {
             let latitude = this.state.region.latitude;
             let longitude = this.state.region.longitude;
@@ -167,14 +198,14 @@ export default class BearingAngle extends Component {
                     longitude: longitude_b
                 }
             }, ()=>{
-                this.bearingEvent(this.state.src,this.state.B);
+                this.bearingEvent(this.state.src,this.state.B); 
             })   
         } 
         else if (id == 2) {
-            let latitude = this.state.region.latitude;
-            let longitude = this.state.region.longitude;
             let latitude_a = this.state.src.latitude;
             let longitude_a = this.state.src.longitude;
+            let latitude = this.state.region.latitude;
+            let longitude = this.state.region.longitude;
             this.setState({
                 src: {
                     latitude: latitude_a,
@@ -207,13 +238,27 @@ export default class BearingAngle extends Component {
         let x = (Math.cos(this.toRadians(lat_a)) * Math.sin(this.toRadians(lat_b))) - (Math.sin(this.toRadians(lat_a)) * Math.cos(this.toRadians(lat_b)) * Math.cos(this.toRadians(lng_b-lng_a)));
         let brng = Math.atan2(y,x);
         brng = this.toDegrees(brng);
-        this.setState({bearing: brng})
+        realm.write(() => {
+            var Id = realm.objects('MarkersData').length+1;
+            realm.create('MarkersData',{
+                id: Id,
+                bearing: brng,
+                targetlat: this.state.B.latitude,
+                targetlng: this.state.B.longitude,
+                sourcelat: this.state.src.latitude,
+                sourcelng: this.state.src.longitude,
+            });
+        });
+        this.setState({
+            bearing: brng
+        });
         this.callMap();
     }
-     
+
     render() {
         return (
             <View style={styles.container}>
+                {this.callMap()} 
                 {renderIf(this.state.manualmarker)(
                     <View style={styles.markerFixed}>
                         <TouchableOpacity onPress={()=>this.markPoint(this.state.index)}>
@@ -222,8 +267,12 @@ export default class BearingAngle extends Component {
                             />
                         </TouchableOpacity>
                     </View>
-                )}
-                {this.callMap()}   
+                )}  
+                <View style={styles.textContainer}>
+                    <Text>Bearing: {this.state.bearing}</Text>
+                    <Text>Target LatLng: {this.state.B.latitude}, {this.state.B.longitude}</Text>
+                    <Text>Source LatLng: {this.state.src.latitude}, {this.state.src.longitude}</Text>
+                </View>
             </View>
         );
     }
@@ -254,9 +303,11 @@ const styles = StyleSheet.create({
     },
     textContainer: {
         marginVertical:2,
-        width:screen.width-50,
-        backgroundColor:"rgba(52, 52, 52, 0.6)"
-        
+        width:screen.width-100,
+        height: 100,
+        backgroundColor:"rgba(255, 255, 277, 0.8)",
+        marginBottom: 20,
+        padding: 10,
     },
     Container: {
         flexDirection: 'row',
@@ -289,5 +340,8 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: '50%',
         zIndex: 999,
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        backgroundColor: 'transparent'
     },
 });
