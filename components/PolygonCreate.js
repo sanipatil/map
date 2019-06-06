@@ -1,9 +1,12 @@
 import React, {Component} from 'react';
-import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Alert, Image} from 'react-native';
+import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Alert, Image, PermissionsAndroid} from 'react-native';
 import MapView, {PROVIDER_GOOGLE, Polygon} from 'react-native-maps';
 import RNFetchBlob from 'react-native-fetch-blob';
 import {BackHandler} from 'react-native';
 import HeaderCommon from './HeaderCommon';
+import realm from './RealmData';
+import renderIf from 'render-if';
+import Share from 'react-native-share';
 
 
 const screen = Dimensions.get('window');
@@ -25,7 +28,7 @@ export default class PolygonCreate extends Component {
       <HeaderCommon
           GoToAlert = {() => {
               const title = 'Create Polygon Help';
-              const message = '1.DoubleTap the map to Zoom and mark locations accurately.\n'+'\n2. To Export the polygon coordinates, click on "Export To CSV". A "polygon.csv" file will be exported in the download folder.';
+              const message = '1. DoubleTap the map to Zoom and mark locations accurately.\n'+'\n2. Press "Save" after creating each polygon to export.\n'+'\n3. Tap the polygon to access "Delete" option.\n'+'\n4. To share polygons saved, press "Share CSV". A "polygon.csv" file can be shared.\n'+'\n5. To delete all polygons, press "Reset All".';
               Alert.alert(title, message);
           }}
       />
@@ -50,11 +53,41 @@ export default class PolygonCreate extends Component {
       polygons: [],
       editing: null,
       creatingHole: false,
+      dataSource: [],
+      exports: false,
     };
+    const FILE_PATH = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
+    RNFetchBlob.fs.unlink(FILE_PATH)
+    .then({})
+    .catch((error)=> alert(error.message));
   }
 
   componentDidMount() {
     this._ismounted=true;
+
+    if (Platform.OS === 'android') {
+      PermissionsAndroid.requestMultiple(
+        [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE]
+        ).then((result) => {
+          if (result['android.permission.ACCESS_COARSE_LOCATION']
+          && result['android.permission.ACCESS_FINE_LOCATION']
+          && result['android.permission.READ_EXTERNAL_STORAGE']
+          && result['android.permission.WRITE_EXTERNAL_STORAGE'] === 'granted') {
+            this.setState({
+              permissionsGranted: true
+            });
+          } else if (result['android.permission.ACCESS_COARSE_LOCATION']
+          || result['android.permission.ACCESS_FINE_LOCATION']
+          || result['android.permission.READ_EXTERNAL_STORAGE']
+          || result['android.permission.WRITE_EXTERNAL_STORAGE'] === 'never_ask_again') {
+            this.refs.toast.show('Please Go to Settings -> Applications -> APP_NAME -> Permissions and Allow permissions to continue');
+          }
+        });
+    }
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         let latitude = position.coords.latitude;
@@ -73,12 +106,11 @@ export default class PolygonCreate extends Component {
       },
       {enableHighAccuracy: false, timeout: 15000, maximumAge: 100}
     );
-    
-    if (Platform.OS === 'android') {
-      if (this.marker) {
-        this.marker._component.animateMarkerToCoordinate(this.state.region, 500);
-      }
-    }
+
+    var data = realm.objects('PolygonData');
+    this.setState({
+      dataSource: data,
+    });
   }
 
   componentWillMount() {
@@ -92,31 +124,6 @@ export default class PolygonCreate extends Component {
 
   onBack = () => {
     return this.props.onBack();
-  }
-
-  createHole() {
-    const { editing, creatingHole } = this.state;
-    if (!creatingHole) {
-      this.setState({
-        creatingHole: true,
-        editing: {
-          ...editing,
-          holes: [...editing.holes, []],
-        },
-      });
-    } else {
-        const holes = [...editing.holes];
-        if (holes[holes.length - 1].length === 0) {
-          holes.pop();
-          this.setState({
-            editing: {
-              ...editing,
-              holes,
-            },
-          });
-        }
-        this.setState({ creatingHole: false });
-      }
   }
     
   onPress() {
@@ -152,54 +159,13 @@ export default class PolygonCreate extends Component {
           });
         }
   }
-
-  changeCoordinate(index) {
-    let newCoord = this.state.region;
-    let newEditing = Object.assign({},this.state.editing);
-    let newCoordinates = Object.assign({},newEditing.coordinates);
-    newCoordinates[index] = newCoord;
-    newEditing.coordinates = newCoordinates;
-    let transformedCoords = Object.keys(newEditing.coordinates).map(function (key) { return newEditing.coordinates[key]; });
-    newEditing.coordinates = transformedCoords;
-    this.setState({
-      editing: newEditing
-    })
-  }
       
-  exportData = () => {
-    const { polygons, editing } = this.state;
-    this.setState({
-      polygons: [...polygons, editing],
-      editing: null,
-      creatingHole: false,
-    });
-    
-    console.warn(this.state.editing.coordinates);
-    const headerString = 'latitude,longitude\n';
-    const FILE_PATH = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
-    const csvString = `${headerString}${this.ConvertToCSV(this.state.editing.coordinates)}`;
-    RNFetchBlob.fs
-      .writeFile(FILE_PATH, csvString, "utf8")
-      .then(() => {
-        alert("File updated succesfully");
-      })
-      .catch(error => alert(error.message));
-  }
-
-  ConvertToCSV = (objArray) => {
-    var array = typeof objArray != "object" ? JSON.parse(objArray) : objArray;
-    var str = "";
-    for (var i = 0; i < array.length; i++) {
-      str+= array[i]['latitude']+","+array[i]['longitude']+"\r\n";
-    }
-    return str;
-  };
-
   onRegionChangeComplete = (region) => {
     this.setState({region})   
   }
 
   callMap() {
+
     return (
       <MapView
           provider={PROVIDER_GOOGLE}
@@ -214,26 +180,7 @@ export default class PolygonCreate extends Component {
             title="My location"
             pinColor={'yellow'}
           />
-          {this.state.polygons.map((polygon) => (
-            <Polygon
-              key={polygon.id}
-              coordinates={polygon.coordinates}
-              holes={polygon.holes}
-              strokeColor="#F00"
-              fillColor="rgba(255,0,0,0.5)"
-              strokeWidth={1}
-            />
-          ))}
-          {this.state.editing && (
-            <Polygon
-              key={this.state.editing.id}
-              coordinates={this.state.editing.coordinates}
-              holes={this.state.editing.holes}
-              strokeColor="#000"
-              fillColor="rgba(255,0,0,0.5)"
-              strokeWidth={1}
-            />
-          )}
+          
           {this.state.editing && (
             <MapView.Polygon
               key={this.state.editing.coordinates}
@@ -243,16 +190,124 @@ export default class PolygonCreate extends Component {
               strokeWidth={1}
             />
           )}
+          {this.state.polygons.map((polygon) => (
+            <Polygon
+              key={polygon.id}
+              coordinates={polygon.coordinates}
+              title={polygon.id.toString()}
+              holes={polygon.holes}
+              strokeColor="#F00"
+              fillColor="rgba(255,0,0,0.5)"
+              strokeWidth={1}
+              tappable={true}
+              onPress={()=> this.polygonPress(polygon.id)}
+            />
+          ))}
           {this.state.editing && this.state.editing.coordinates &&
             (this.state.editing.coordinates.map((coordinate, index) => (
               <MapView.Marker
                 key={index}
                 coordinate={coordinate}
-                onPress={(e) => this.changeCoordinate(index)}>
+              >
               </MapView.Marker>
           )))}
         </MapView>
     );
+  }
+
+  polygonPress = (i) => {
+    const id = (i).toString();
+    const title = `PolygonId: ${id}`;
+    const message = '';
+    const buttons = [
+      {text: 'Delete', onPress: () => this.deletePolygon(i)}
+    ]
+    Alert.alert(title, message, buttons);
+  }
+
+  deletePolygon = (i) => {
+    let poly = realm.objects('PolygonData').filtered(`id=${i}`);
+    realm.write(() => {
+      realm.delete(poly);
+    })
+    var temp = this.state.polygons.filter((item) => item != this.state.polygons[i]);
+    this.setState({
+      polygons: temp,
+    })
+  }
+
+  reset = () => {
+    this.setState({
+      polygons: [],
+      editing: null,
+      creatingHole: false,  
+      exports: false,  
+    })
+
+    realm.write(() => {
+      let allpolygons = realm.objects('PolygonData');
+      realm.delete(allpolygons);
+    })
+
+    const FILE_PATH = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
+    RNFetchBlob.fs.unlink(FILE_PATH)
+    .then((
+      Alert.alert('Data Reset')
+    ))
+    .catch((error)=> alert(error.message));
+  }
+
+  save = () => {  
+    const { polygons, editing } = this.state;
+    this.setState({
+      polygons: [...polygons, editing],
+      editing: null,
+      creatingHole: false,
+    });
+    for (i in this.state.editing.coordinates) {    
+      realm.write(() => {
+        realm.create('PolygonData', {
+          id: this.state.editing.id,
+          lat: this.state.editing.coordinates[i].latitude,
+          lng: this.state.editing.coordinates[i].longitude,
+        });
+      });
+    }
+    this.setState({
+      exports: true,
+    })
+    Alert.alert('Data Saved')
+  }
+
+  shareData = () => {
+    this.exportData();
+    let path = `file://${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
+    let options = {
+      url: path,
+    }
+    Share.open(options);
+  }
+
+  exportData = () => {
+    const headerString = 'Polygon id,Latitude,Longitude\n';
+    const FILE_PATH = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
+    const csvString = `${headerString}${this.ConvertToCSV(this.state.dataSource)}`;
+    RNFetchBlob.fs
+      .writeFile(FILE_PATH, csvString, "utf8")
+      .then((res) => {
+        //alert("File updated succesfully");
+      })
+      .catch(error => alert(error.message));
+  }
+
+  ConvertToCSV = (objArray) => {
+
+    var array = typeof objArray != "object" ? JSON.parse(objArray) : objArray;
+    var str = "";
+    for (var i = 0; i < array.length; i++) {
+      str+= array[i]['id']+","+array[i]['lat']+","+array[i]['lng']+"\n";
+    }
+    return str;
   }
 
   render() {   
@@ -269,11 +324,23 @@ export default class PolygonCreate extends Component {
         <View style={styles.buttonContainer}>
           {this.state.editing && (
             <TouchableOpacity
-              onPress={() => this.exportData()}
+              onPress={() => this.save()}
               style={[styles.bubble, styles.button]}>
-              <Text>Export To CSV</Text>
+              <Text>Save</Text>
             </TouchableOpacity>
           )}
+            {renderIf(this.state.exports)(
+              <TouchableOpacity
+                onPress={() => this.shareData()}
+                style={[styles.bubble, styles.button]}>
+                <Text>Share CSV</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => this.reset()}
+              style={[styles.bubble, styles.button]}>
+              <Text>Reset All</Text>
+            </TouchableOpacity>
         </View>
       </View>
     );
@@ -300,7 +367,6 @@ const styles = StyleSheet.create({
   },
   button: {
     height: 40,
-    width: '40%',
     paddingHorizontal: 12,
     alignItems: 'center',
     marginHorizontal: 10,

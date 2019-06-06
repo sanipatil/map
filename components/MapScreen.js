@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Share, Alert, Image} from 'react-native';
+import {StyleSheet, Text, View, TouchableOpacity, Dimensions, Share, Alert, Image} from 'react-native';
 import MapView, {PROVIDER_GOOGLE, Marker} from 'react-native-maps';
 import {BackHandler} from 'react-native';
 import HeaderCommon from './HeaderCommon';
@@ -10,7 +10,6 @@ const ASPECT_RATIO = screen.width / screen.height;
 const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
-var filepath = 'C:\Users\SANIKA\Projects\react_native\map';
 
 export default class MapScreen extends Component {
   _ismounted = false;
@@ -25,7 +24,7 @@ export default class MapScreen extends Component {
       <HeaderCommon
           GoToAlert = {() => {
               const title = 'Map Coordinates Help';
-              const message = '1.DoubleTap the map to Zoom and mark locations accurately.\n'+'\n2. Click on the marker to View Latitude, Longitude and Share that particular marker.\n'+'\n3. To share all marked points click on "Share All Marked Points".';
+              const message = '1. DoubleTap the map to Zoom and mark locations accurately.\n'+'\n2. Tap the marker to View Latitude, Longitude, Share and Delete the marker.\n'+'\n3. To share all points marked press "Share All Points".\n'+'\n4. To remove all marked points press "Reset All".';
               Alert.alert(title, message);
           }}
       />
@@ -88,8 +87,7 @@ export default class MapScreen extends Component {
   }
 
 
-  addMarker() {
-    //console.warn(coordinates);    
+  addMarker() {  
     if(this._ismounted) {
       this.setState({
         markers: [...this.state.markers,
@@ -105,33 +103,47 @@ export default class MapScreen extends Component {
   }
 
   shareCoordinates = () => {
-    //console.warn(this.state.markers.latlng);
-    var temp  = JSON.stringify(this.state.markers)
+    var temp = [];
+    for(var i = 0; i<this.state.markers.length;i++) {
+      temp+= JSON.stringify(this.state.markers[i].latlng);
+    }
+    var message = `${temp}`;
     Share.share({
-      message: temp
+      message: message
     }).then(result=>console.log(result).catch(errorMsg=>console.log(errorMsg)));
   }
 
   displayLatlng = (i) => {
+    var temp1  = JSON.stringify(this.state.markers[i].latlng.latitude);
+    var temp2 = JSON.stringify(this.state.markers[i].latlng.longitude);
     const title = `LatLng of Marker: ${i+1}`;
-    const message = `Latlng: ${JSON.stringify(this.state.markers[i].latlng)}`;
+    const message = `Latitude: ${temp1} Longitude: ${temp2}`;
     Alert.alert(title, message);
   }
 
   shareMarker = (i) => {
-    var temp  = JSON.stringify(this.state.markers[i].latlng);
+    var temp1  = JSON.stringify(this.state.markers[i].latlng.latitude);
+    var temp2 = JSON.stringify(this.state.markers[i].latlng.longitude);
     Share.share({
-      message: temp
+      message: `Latitude: ${temp1} Longitude: ${temp2}`
     }).then(result=>console.log(result).catch(errorMsg=>console.log(errorMsg)));
+  }
+
+  deleteMarker = (i) => {
+    var temp = this.state.markers.filter((item) => item != this.state.markers[i]);
+    this.setState({
+      markers: temp
+    })
   }
  
   onMarkerPress(i) {
     const id = (i+1).toString();
     const title = `MarkerId: ${id}`;
-    const message = 'Operations on marker'
+    const message = 'Operations on marker';
     const buttons = [
-      {text: 'Display LatLng', onPress: () => this.displayLatlng(i)},
-      {text: 'Share', onPress: () => this.shareMarker(i)}
+      {text: 'Share', onPress: () => this.shareMarker(i)},
+      {text: 'Delete Marker', onPress: () => this.deleteMarker(i)},
+      {text: 'Display LatLng', onPress: () => this.displayLatlng(i)}
     ]
     Alert.alert(title, message, buttons);
   }
@@ -169,6 +181,13 @@ export default class MapScreen extends Component {
     );
   }
   
+  reset = () => {
+    this.setState({
+      markers: []
+    })
+    Alert.alert('Data Reset')
+  }
+
   render() {
     return (
       <View style={styles.container}>
@@ -184,7 +203,12 @@ export default class MapScreen extends Component {
             <TouchableOpacity
               onPress={()=>this.shareCoordinates()}
               style={[styles.bubble, styles.button]}>
-              <Text>Share All Marked Points</Text>
+              <Text>Share All Points</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={()=>this.reset()}
+              style={[styles.bubble, styles.button]}>
+              <Text>Reset All</Text>
             </TouchableOpacity>
         </View>
       </View>
@@ -206,14 +230,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.8)',
     paddingHorizontal: 18,
     paddingVertical: 12,
-    //borderRadius: 20,
   },
   latlng: {
     width: 200,
     alignItems: 'stretch',
   },
   button: {
-    width: 80,
+    height: 50,
+    width: '40%',
     paddingHorizontal: 12,
     alignItems: 'center',
     marginHorizontal: 10,
@@ -222,11 +246,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginVertical: 20,
     backgroundColor: 'transparent',
+    justifyContent: 'space-between'
   },
   markerFixed: {
     left: '50%',
-    marginLeft: -30,  //-30, //-24,
-    marginTop: -30,   //-30, //-48,
+    marginLeft: -30, 
+    marginTop: -30,  
     position: 'absolute',
     top: '50%',
     zIndex: 999,
