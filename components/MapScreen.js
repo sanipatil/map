@@ -2,7 +2,7 @@ import React, {Component} from 'react';
 import {StyleSheet, Text, View, TouchableOpacity, Dimensions, Share, Alert, Image} from 'react-native';
 import MapView, {PROVIDER_GOOGLE, Marker} from 'react-native-maps';
 import {BackHandler} from 'react-native';
-import HeaderCommon from './HeaderCommon';
+import { Navigation } from 'react-native-navigation';
 
 
 const screen = Dimensions.get('window');
@@ -13,23 +13,27 @@ const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
 export default class MapScreen extends Component {
   _ismounted = false;
-  
-  static navigationOptions = {
-    title: 'Map Coordinates',
-    headerStyle: {
-      backgroundColor: '#1b3752'
-    },
-    headerTintColor: '#dce7f3',
-    headerRight: (
-      <HeaderCommon
-          GoToAlert = {() => {
-              const title = 'Map Coordinates Help';
-              const message = '1. DoubleTap the map to Zoom and mark locations accurately.\n'+'\n2. Tap the marker to View Latitude, Longitude, Share and Delete the marker.\n'+'\n3. To share all points marked press "Share All Points".\n'+'\n4. To remove all marked points press "Reset All".';
-              Alert.alert(title, message);
-          }}
-      />
-    )
-  };
+  static get options() {
+    return {
+      topBar: {
+        backButton: { color: '#dce7f3'},
+        background: {
+            color: '#1b3752',
+        },
+        title: {
+            text: 'Map Coordinates',
+            color: '#dce7f3',
+            fontSize: 20,
+            fontFamily: 'Arial',
+        },
+        rightButtons: [{
+          id: 'HeaderButton',
+          text: 'Help',
+          color: '#dce7f3',
+        }]
+      }
+    };
+  }
 
   constructor(props) {
     super(props);
@@ -48,11 +52,12 @@ export default class MapScreen extends Component {
       },
       markers: []
     };
+    Navigation.events().bindComponent(this);
     BackHandler.addEventListener('hardwareBackPress', this.onBack);
   }
 
   componentWillMount() {
-    BackHandler.removeEventListener('hardwareBackPress', this.onBack);
+    BackHandler.addEventListener('hardwareBackPress', this.onBack);
   }
 
   componentWillUnmount() {
@@ -61,8 +66,15 @@ export default class MapScreen extends Component {
   }
 
   onBack = () => {
-    return this.props.onBack();
+    Navigation.pop(this.props.componentId);
+    return true;
   }
+
+  navigationButtonPressed({ buttonId }) {
+    const title = 'Map Coordinates Help';
+    const message = '1. DoubleTap the map to Zoom and mark locations accurately.\n'+'\n2. Tap the marker to View Latitude, Longitude, Share and Delete the marker.\n'+'\n3. To share all points marked press "Share All Points".\n'+'\n4. To remove all marked points press "Reset All".';
+    Alert.alert(title, message);
+}
 
   componentDidMount() {
     this._ismounted=true;

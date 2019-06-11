@@ -18,7 +18,7 @@ const ASPECT_RATIO = screen.width / screen.height;
 const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
-export default class BearingAngle extends Component {
+export default class Bearing extends Component {
 
     static get options() {
         return {
@@ -118,6 +118,7 @@ export default class BearingAngle extends Component {
         BackHandler.removeEventListener('hardwareBackPress', this.onBack);
     }
     
+    
     onBack = () => {
         Navigation.pop(this.props.componentId);
         return true;
@@ -125,17 +126,17 @@ export default class BearingAngle extends Component {
 
     navigationButtonPressed({ buttonId }) {
         const title = 'Bearing Angle Help';
-        const message = '1. DoubleTap to zoom map and mark locations accurately.\n'+'\n2. Tap marker to access options: Move to GPS and Edit Manually.\n'+'\n4. Press "Save" to save the bearing for futhur usage.\n'+'\n3. To display all saved bearings and access the share option, select the "All Bearings" option.\n'+'\n4. To reset data viewed on map press "Reset All".';
+        const message = '1. DoubleTap to zoom map and mark locations accurately.\n'+'\n2. Tap marker to access options: Move to GPS and Edit Manually.\n'+'\n4. Press "Save" to save the bearing for futhur usage.\n'+'\n3. To display all saved bearings select the "All Bearings" option.\n'+'\n4. To reset data viewed on map press "Reset All".';
         Alert.alert(title, message);
     }
 
     GoToDisplay = () => {
         Navigation.push(this.props.componentId, {
             component: {
-                id: 'ShowBearingData',
-                name: 'ShowBearingData',
-                passProps: {},
-                options: {},                
+                 id: 'ShowBearingData',
+                 name: 'ShowBearingData',
+                 passProps: {},
+                 options: {},                
             },
         })
     }

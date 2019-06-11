@@ -1,45 +1,69 @@
 import React, {Component} from 'react';
 import {Platform, StyleSheet, Text, View, ImageBackground, TouchableOpacity} from 'react-native';
 import {BackHandler} from 'react-native';
-
+import {Navigation} from 'react-native-navigation';
 
 export default class HomeScreen extends Component {
 
-    static navigationOptions = {
+    /*static navigationOptions = {
         title: 'Home Screen',
         headerStyle: {
            backgroundColor: '#1b3752'
         },
         headerTintColor: '#dce7f3'
-    };
+    };*/
+
+    static get options() {
+        return {
+            topBar: {
+                background: {
+                    color: '#1b3752',
+                },
+                title: {
+                    text: 'Home Screen',
+                    color: '#dce7f3',
+                    fontSize: 20,
+                    fontFamily: 'Arial',
+                },
+            }
+        };
+    }
 
     constructor(props){
         super(props);
-        BackHandler.addEventListener('hardwareBackPress', this.onBack);
-    }
-
-    componentWillMount() {
-        BackHandler.removeEventListener('hardwareBackPress', this.onBack);
-    }
-
-    componentWillUnmount() {
-        BackHandler.removeEventListener('hardwareBackPress', this.onBack);
-    }
-
-    onBack = () => {
-        return this.props.onBack();
     }
 
     GoToMapScreen = () => {
-       this.props.navigation.navigate('MapScreen');
+       Navigation.push(this.props.componentId, {
+           component: {
+                id: 'MapScreen',
+                name: 'MapScreen',
+                passProps: {},
+                options: {},                
+           },
+       })
     }
 
     GoToPolygon = () => {
-        this.props.navigation.navigate('PolygonCreate');
+       Navigation.push(this.props.componentId, {
+        component: {
+             id: 'PolygonCreate',
+             name: 'PolygonCreate',
+             passProps: {},
+             options: {},                
+        },
+    })
     }
 
     GoToBearingAngle = () => {
-        this.props.navigation.navigate('BearingAngle');
+       Navigation.push(this.props.componentId, {
+        component: {
+             id: 'BearingAngle',
+             name: 'BearingAngle',
+             passProps: {},
+             options: {},                
+        },
+    })
     }
 
 
@@ -47,7 +71,7 @@ export default class HomeScreen extends Component {
         return (
             <ImageBackground source={require('./res/map.jpg')} style={styles.backgroundImage}>
                 <View style={styles.MainContainer}>
-                    <TouchableOpacity onPress={this.GoToMapScreen} activeOpacity={0.1} style={styles.button} >
+                    <TouchableOpacity onPress={()=>this.GoToMapScreen()} activeOpacity={0.1} style={styles.button} >
                         <Text style={styles.TextStyle}> MAP COORDINATES </Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={this.GoToPolygon} activeOpacity={0.1} style={styles.button} >

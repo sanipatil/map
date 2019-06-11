@@ -3,10 +3,10 @@ import {Platform, StyleSheet, Text, View, TouchableOpacity, Dimensions, Alert, I
 import MapView, {PROVIDER_GOOGLE, Polygon} from 'react-native-maps';
 import RNFetchBlob from 'react-native-fetch-blob';
 import {BackHandler} from 'react-native';
-import HeaderCommon from './HeaderCommon';
 import realm from './RealmData';
 import renderIf from 'render-if';
-import Share from 'react-native-share';
+import { Navigation } from 'react-native-navigation';
+import shareexport from './ShareExport';
 
 
 const screen = Dimensions.get('window');
@@ -17,23 +17,27 @@ let id=0;
 
 export default class PolygonCreate extends Component {
   _ismounted = false;
-
-  static navigationOptions = {
-    title: 'Create Polygon',
-    headerStyle: {
-      backgroundColor: '#1b3752'
-    },
-    headerTintColor: '#dce7f3',
-    headerRight: (
-      <HeaderCommon
-          GoToAlert = {() => {
-              const title = 'Create Polygon Help';
-              const message = '1. DoubleTap the map to Zoom and mark locations accurately.\n'+'\n2. Press "Save" after creating each polygon to export.\n'+'\n3. Tap the polygon to access "Delete" option.\n'+'\n4. To share polygons saved, press "Share CSV". A "polygon.csv" file can be shared.\n'+'\n5. To delete all polygons, press "Reset All".';
-              Alert.alert(title, message);
-          }}
-      />
-    )
-  };
+  static get options() {
+    return {
+      topBar: {
+        backButton: { color: '#dce7f3'},
+        background: {
+            color: '#1b3752',
+        },
+        title: {
+            text: 'Create Polygon',
+            color: '#dce7f3',
+            fontSize: 20,
+            fontFamily: 'Arial',
+        },
+        rightButtons: [{
+          id: 'HeaderButton',
+          text: 'Help',
+          color: '#dce7f3',
+        }]
+      }
+    };
+  }
 
   constructor(props) {
     super(props);
@@ -56,10 +60,14 @@ export default class PolygonCreate extends Component {
       dataSource: [],
       exports: false,
     };
+
     const FILE_PATH = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
     RNFetchBlob.fs.unlink(FILE_PATH)
     .then({})
     .catch((error)=> alert(error.message));
+
+    Navigation.events().bindComponent(this);
+    BackHandler.addEventListener('hardwareBackPress', this.onBack);
   }
 
   componentDidMount() {
@@ -114,7 +122,7 @@ export default class PolygonCreate extends Component {
   }
 
   componentWillMount() {
-    BackHandler.removeEventListener('hardwareBackPress', this.onBack);
+    BackHandler.addEventListener('hardwareBackPress', this.onBack);
   }
   
   componentWillUnmount() {
@@ -123,9 +131,16 @@ export default class PolygonCreate extends Component {
   }
 
   onBack = () => {
-    return this.props.onBack();
+    Navigation.pop(this.props.componentId);
+    return true;
   }
-    
+  
+  navigationButtonPressed({ buttonId }) {
+    const title = 'Create Polygon Help';
+    const message = '1. DoubleTap the map to Zoom and mark locations accurately.\n'+'\n2. Press "Save" after creating each polygon to export.\n'+'\n3. Tap the polygon to access "Delete" option.\n'+'\n4. To share polygons saved, press "Share CSV". A "polygon.csv" file can be shared.\n'+'\n5. To delete all polygons, press "Reset All".';
+    Alert.alert(title, message);
+  }
+
   onPress() {
     const { editing, creatingHole } = this.state;
     if (!editing) {
@@ -190,17 +205,17 @@ export default class PolygonCreate extends Component {
               strokeWidth={1}
             />
           )}
-          {this.state.polygons.map((polygon) => (
+          {this.state.polygons.map((polygon,i) => (
             <Polygon
-              key={polygon.id}
+              key={i}
               coordinates={polygon.coordinates}
-              title={polygon.id.toString()}
+              title={(i).toString()}
               holes={polygon.holes}
               strokeColor="#F00"
               fillColor="rgba(255,0,0,0.5)"
               strokeWidth={1}
               tappable={true}
-              onPress={()=> this.polygonPress(polygon.id)}
+              onPress={()=> this.polygonPress(i)}
             />
           ))}
           {this.state.editing && this.state.editing.coordinates &&
@@ -226,13 +241,14 @@ export default class PolygonCreate extends Component {
   }
 
   deletePolygon = (i) => {
-    let poly = realm.objects('PolygonData').filtered(`id=${i}`);
-    realm.write(() => {
-      realm.delete(poly);
-    })
     var temp = this.state.polygons.filter((item) => item != this.state.polygons[i]);
     this.setState({
       polygons: temp,
+    })
+
+    let poly = realm.objects('PolygonData').filtered(`id=${i}`);
+    realm.write(() => {
+      realm.delete(poly);
     })
   }
 
@@ -280,28 +296,13 @@ export default class PolygonCreate extends Component {
   }
 
   shareData = () => {
-    this.exportData();
-    let path = `file://${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
-    let options = {
-      url: path,
-    }
-    Share.open(options);
-  }
-
-  exportData = () => {
     const headerString = 'Polygon id,Latitude,Longitude\n';
     const FILE_PATH = `${RNFetchBlob.fs.dirs.DownloadDir}/polygon.csv`;
     const csvString = `${headerString}${this.ConvertToCSV(this.state.dataSource)}`;
-    RNFetchBlob.fs
-      .writeFile(FILE_PATH, csvString, "utf8")
-      .then((res) => {
-        //alert("File updated succesfully");
-      })
-      .catch(error => alert(error.message));
+    shareexport.shareData(FILE_PATH,csvString);
   }
 
   ConvertToCSV = (objArray) => {
-
     var array = typeof objArray != "object" ? JSON.parse(objArray) : objArray;
     var str = "";
     for (var i = 0; i < array.length; i++) {
