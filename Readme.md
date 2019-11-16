@@ -25,6 +25,14 @@ Refer https://reactnavigation.org/docs/en/getting-started.html
 ```bash
 npm install
 ```
+### Google Maps API key
+
+```bash
+Add your API key in map/android/app/src/main/AndroidManifest.xml 
+<meta-data
+        android:name="com.google.android.geo.API_KEY"
+        android:value="Google_API_KEY"/>
+```
 ## Build and Run
 
 For IOS:
